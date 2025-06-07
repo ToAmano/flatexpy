@@ -1,9 +1,6 @@
 Python:
   - changed-files:
-      - any-glob-to-any-file: src/mlwc/**/*
-CPP:
-  - changed-files:
-      - any-glob-to-any-file: src/cpp/**/*
+      - any-glob-to-any-file: flatexpy/*
 Docs:
   - changed-files:
       - any-glob-to-any-file: docs/**/*
@@ -12,7 +9,7 @@ Examples:
       - any-glob-to-any-file: examples/**/*
 Test:
   - changed-files:
-      - any-glob-to-any-file: test/**/*
+      - any-glob-to-any-file: tests/**/*
 CICD:
   - changed-files:
       - any-glob-to-any-file: .github/**/*
