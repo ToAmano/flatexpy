@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flatexpy.flatexpy import LatexExpandConfig, LatexExpander, LatexExpandError
+from flatexpy.flatexpy_core import LatexExpandConfig, LatexExpander, LatexExpandError
 
 
 class TestGraphicsUnit:

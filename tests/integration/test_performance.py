@@ -5,7 +5,7 @@ import tempfile
 
 import pytest
 
-from flatexpy.flatexpy import LatexExpandConfig, LatexExpander
+from flatexpy.flatexpy_core import LatexExpandConfig, LatexExpander
 
 
 class TestPerformance:

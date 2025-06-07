@@ -2,7 +2,7 @@
 
 import pytest
 
-from flatexpy.flatexpy import GraphicsNotFoundError, LatexExpandError
+from flatexpy.flatexpy_core import GraphicsNotFoundError, LatexExpandError
 
 
 class TestExceptions:

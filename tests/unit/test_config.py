@@ -2,7 +2,7 @@
 
 import pytest
 
-from flatexpy.flatexpy import LatexExpandConfig
+from flatexpy.flatexpy_core import LatexExpandConfig
 
 
 class TestLatexExpandConfig:

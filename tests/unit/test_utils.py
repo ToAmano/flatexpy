@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flatexpy.flatexpy import _create_output_dir
+from flatexpy.flatexpy_core import _create_output_dir
 
 
 class TestCreateOutputDir:

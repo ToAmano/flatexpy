@@ -43,7 +43,7 @@ Repository = "https://github.com/ToAmano/flatexpy"
 Changelog = "https://github.com/ToAmano/flatexpy/blob/main/CHANGELOG.md"
 
 [project.scripts]
-flatexpy = "flatexpy.flatexpy:main"
+flatexpy = "flatexpy.flatexpy_core:main"
 
 [project.optional-dependencies]
 dev = [

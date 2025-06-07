@@ -5,15 +5,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flatexpy.flatexpy import LatexExpandError, main
+from flatexpy.flatexpy_core import LatexExpandError, main
 
 
 class TestMainFunction:
     """Test cases for main function and CLI argument parsing."""
 
     @patch("sys.argv", ["flatexpy.py", "input.tex", "--force"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     @patch("builtins.print")
     def test_main_basic(
         self,
@@ -31,8 +31,8 @@ class TestMainFunction:
         mock_print.assert_called_once()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex", "--verbose", "--force"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     @patch("logging.getLogger")
     def test_main_verbose(
         self,
@@ -51,8 +51,8 @@ class TestMainFunction:
         mock_logger.setLevel.assert_called()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex", "-o", "custom_output/", "-f"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     def test_main_custom_output(
         self, mock_create_output: MagicMock, mock_flatten: MagicMock
     ) -> None:
@@ -69,8 +69,8 @@ class TestMainFunction:
         "sys.argv",
         ["flatexpy.py", "input.tex", "--graphics-exts", ".svg", ".tiff", "-f"],
     )
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     def test_main_custom_graphics_extensions(
         self, mock_create_output: MagicMock, mock_flatten: MagicMock
     ) -> None:
@@ -84,8 +84,8 @@ class TestMainFunction:
         mock_flatten.assert_called_once()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex", "--ignore-comments", "-f"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     def test_main_ignore_comments(
         self, mock_create_output: MagicMock, mock_flatten: MagicMock
     ) -> None:
@@ -98,8 +98,8 @@ class TestMainFunction:
         mock_flatten.assert_called_once()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     @patch("sys.exit")
     @patch("builtins.print")
     def test_main_error_handling(
@@ -119,8 +119,8 @@ class TestMainFunction:
         mock_print.assert_called()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex"])
-    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
-    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("flatexpy.flatexpy_core.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy_core._create_output_dir")
     @patch("sys.exit")
     @patch("builtins.print")
     def test_main_create_output_dir_error(
@@ -158,9 +158,13 @@ class TestMainFunction:
             # Mock sys.argv
             test_args = ["flatexpy.py", input_file, "-o", output_dir, "-f"]
 
-            with patch("sys.argv", test_args), patch(
-                "flatexpy.flatexpy.LatexExpander.flatten_latex"
-            ) as mock_flatten, patch("builtins.print"):
+            with (
+                patch("sys.argv", test_args),
+                patch(
+                    "flatexpy.flatexpy_core.LatexExpander.flatten_latex"
+                ) as mock_flatten,
+                patch("builtins.print"),
+            ):
 
                 mock_flatten.return_value = "content"
                 main()
@@ -189,7 +193,7 @@ class TestMainFunction:
         """Test that argument parser is configured correctly."""
         import argparse
 
-        from flatexpy.flatexpy import main
+        from flatexpy.flatexpy_core import main
 
         # This is a bit tricky to test without calling main()
         # We can test the parser setup by creating it manually
