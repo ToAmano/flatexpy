@@ -35,6 +35,7 @@ repos:
     # max-line-length setting is the same as black
     args: [--max-line-length, "150", --ignore=E402,--ignore=E800]
     additional_dependencies: [flake8-bugbear, flake8-builtins, flake8-eradicate, pep8-naming, flake8-expression-complexity, flake8-cognitive-complexity,flake8-docstrings]
+    exclude: ^tests/
 - repo: https://github.com/pylint-dev/pylint
   rev: v3.3.7
   hooks:
