@@ -55,6 +55,15 @@ class GraphicsNotFoundError(LatexExpandError):
     """Raised when a graphics file cannot be found."""
 
 
+def _create_output_dir(output_dir: str, is_overwrite: bool) -> None:
+    """create output directory if not exists"""
+    path = Path(output_dir)
+    if is_overwrite or (not path.exists()):
+        os.makedirs(path, exist_ok=True)
+    else:
+        raise FileExistsError(f" Directory exists: {output_dir} :: {is_overwrite}")
+
+
 class LatexExpander:
     """Handles LaTeX document flattening and graphics collection."""
 
@@ -77,14 +86,6 @@ class LatexExpander:
         self._visited_files: Set[str] = set()
         self._graphics_paths: List[str] = []
         self._collected_graphics: Set[str] = set()
-
-    def _create_output_dir(self, output_dir: str) -> None:
-        """create output directory if not exists"""
-        path = Path(output_dir)
-        if not path.exists():
-            os.makedirs(path)
-        else:
-            raise FileExistsError(f"Directory exists: {output_dir}")
 
     def _resolve_file_path(self, file_path: str) -> Path:
         """Resolve file path and check existence.
@@ -172,6 +173,7 @@ class LatexExpander:
                 candidate_with_ext = self._add_extension_to_filename(candidate, ext)
                 if os.path.exists(candidate_with_ext):
                     return candidate_with_ext
+        logger.warning("No graphic file found :: %s", graphic_name)
         return None
 
     def _copy_graphics_file(self, source_path: str, dest_dir: str) -> None:
@@ -238,7 +240,7 @@ class LatexExpander:
             return line, False
 
         cmd, relative_path = match.groups()
-        include_path = relative_path
+        include_path = root_dir + "/" + relative_path
 
         if not include_path.endswith(".tex"):
             include_path += ".tex"
@@ -358,7 +360,6 @@ class LatexExpander:
             self._collected_graphics.clear()
 
             logger.info("Starting LaTeX flattening: %s to %s", input_file, output_file)
-            self._create_output_dir(output_dir)
             flattened_content = self._flatten_file(
                 str(input_path), root_dir, output_dir
             )
@@ -405,6 +406,9 @@ def main() -> None:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging"
     )
+    parser.add_argument(
+        "-f", "--force", action="store_true", help="Overwrite existing diff files."
+    )
 
     args = parser.parse_args()
 
@@ -418,18 +422,23 @@ def main() -> None:
         output_path, f"{input_path.stem}_flattened{input_path.suffix}"
     )
 
+    # extract root dir
+    root_dir: str = os.path.split(args.input_file)[0]
+
     # Create configuration
     config = LatexExpandConfig(
         graphic_extensions=args.graphics_exts,
         ignore_commented_lines=args.ignore_comments,
+        root_directory=root_dir,
     )
 
     # Perform flattening
     try:
+        _create_output_dir(output_path, args.force)
         expander = LatexExpander(config)
         expander.flatten_latex(args.input_file, output_file)
         print(f"Successfully flattened {args.input_file} to {output_file}")
-    except LatexExpandError as e:
+    except (LatexExpandError, FileExistsError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
