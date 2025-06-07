@@ -1,0 +1,50 @@
+# Include the README and license files
+include README.md
+include LICENSE
+include CHANGELOG.md
+
+# Include the package data
+recursive-include flatexpy *.py
+recursive-include flatexpy py.typed
+
+# Include test files for source distributions
+recursive-include tests *.py
+recursive-include tests *.tex
+recursive-include tests *.bib
+recursive-include tests *.png
+recursive-include tests *.jpg
+recursive-include tests *.pdf
+recursive-include tests *.sh
+recursive-include tests/expected *
+recursive-include tests/acdc *
+recursive-include tests/adele *
+recursive-include tests/df-conflict *
+recursive-include tests/dir1 *
+recursive-include tests/dir2 *
+
+# Exclude compiled Python files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude *.so
+
+# Exclude development and build files
+exclude .gitignore
+exclude .pre-commit-config.yaml
+exclude tox.ini
+exclude .github
+recursive-exclude .github *
+exclude .pytest_cache
+recursive-exclude .pytest_cache *
+exclude .mypy_cache
+recursive-exclude .mypy_cache *
+exclude .coverage
+exclude htmlcov
+recursive-exclude htmlcov *
+exclude build
+recursive-exclude build *
+exclude dist
+recursive-exclude dist *
+exclude *.egg-info
+recursive-exclude *.egg-info *
