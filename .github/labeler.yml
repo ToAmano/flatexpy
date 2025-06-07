@@ -1,0 +1,15 @@
+Python:
+  - changed-files:
+      - any-glob-to-any-file: flatexpy/*
+Docs:
+  - changed-files:
+      - any-glob-to-any-file: docs/**/*
+Examples:
+  - changed-files:
+      - any-glob-to-any-file: examples/**/*
+Test:
+  - changed-files:
+      - any-glob-to-any-file: tests/**/*
+CICD:
+  - changed-files:
+      - any-glob-to-any-file: .github/**/*

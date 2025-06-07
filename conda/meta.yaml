@@ -1,0 +1,52 @@
+{% set name = "flatexpy" %}
+{% set version = "1.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz
+  sha256: # This will be filled automatically by conda-forge
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv
+  entry_points:
+    - flatexpy = flatexpy.flatexpy_core:main
+
+requirements:
+  host:
+    - python >=3.8
+    - pip
+    - setuptools
+  run:
+    - python >=3.8
+
+test:
+  imports:
+    - flatexpy
+  commands:
+    - flatexpy --help
+  requires:
+    - pytest
+    - pytest-cov
+
+about:
+  home: https://github.com/ToAmano/flatexpy
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: A LaTeX flattening utility for academic paper submission
+  description: |
+    flatexpy is a Python utility that flattens LaTeX documents by recursively
+    processing \input and \include commands, copying referenced graphics, and
+    producing a single consolidated LaTeX file. This is particularly useful for
+    academic paper submission where journals require a single file submission.
+  doc_url: https://github.com/ToAmano/flatexpy#readme
+  dev_url: https://github.com/ToAmano/flatexpy
+
+extra:
+  recipe-maintainers:
+    - ToAmano
