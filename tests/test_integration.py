@@ -16,7 +16,7 @@ from flatexpy.flatexpy import LatexExpandConfig, LatexExpander, LatexExpandError
 class TestBasicIntegration:
     """Basic integration tests for common use cases."""
 
-    def test_simple_document_flattening(self):
+    def test_simple_document_flattening(self) -> None:
         """Test flattening of a simple document with no includes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -54,7 +54,7 @@ class TestBasicIntegration:
             finally:
                 os.chdir(original_cwd)
 
-    def test_document_with_single_include(self):
+    def test_document_with_single_include(self) -> None:
         """Test flattening document with a single \\input command."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -97,7 +97,7 @@ class TestBasicIntegration:
             finally:
                 os.chdir(original_cwd)
 
-    def test_document_with_multiple_includes(self):
+    def test_document_with_multiple_includes(self) -> None:
         """Test flattening document with multiple \\input commands."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -155,7 +155,7 @@ class TestBasicIntegration:
             finally:
                 os.chdir(original_cwd)
 
-    def test_nested_includes(self):
+    def test_nested_includes(self) -> None:
         """Test flattening document with nested \\input commands."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -214,7 +214,7 @@ class TestBasicIntegration:
 class TestGraphicsHandling:
     """Integration tests for graphics file handling."""
 
-    def test_single_graphics_file(self):
+    def test_single_graphics_file(self) -> None:
         """Test document with single \\includegraphics command."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -259,7 +259,7 @@ class TestGraphicsHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_multiple_graphics_files(self):
+    def test_multiple_graphics_files(self) -> None:
         """Test document with multiple \\includegraphics commands."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -305,7 +305,7 @@ class TestGraphicsHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_graphics_with_graphicspath(self):
+    def test_graphics_with_graphicspath(self) -> None:
         """Test graphics handling with \\graphicspath command."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -348,7 +348,7 @@ class TestGraphicsHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_missing_graphics_file(self):
+    def test_missing_graphics_file(self) -> None:
         """Test handling of missing graphics files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -384,7 +384,7 @@ class TestGraphicsHandling:
 class TestCommentHandling:
     """Integration tests for comment handling."""
 
-    def test_commented_includes_ignored(self):
+    def test_commented_includes_ignored(self) -> None:
         """Test that commented \\input commands are ignored."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -427,7 +427,7 @@ class TestCommentHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_preserve_comments_option(self):
+    def test_preserve_comments_option(self) -> None:
         """Test that comments are preserved in output."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -476,7 +476,7 @@ class TestCommentHandling:
 class TestErrorHandling:
     """Integration tests for error conditions and edge cases."""
 
-    def test_circular_includes(self):
+    def test_circular_includes(self) -> None:
         """Test handling of circular include dependencies."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -523,7 +523,7 @@ class TestErrorHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_missing_input_file(self):
+    def test_missing_input_file(self) -> None:
         """Test handling of missing \\input files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -558,7 +558,7 @@ class TestErrorHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_output_directory_creation_failure(self):
+    def test_output_directory_creation_failure(self) -> None:
         """Test handling when output directory cannot be created."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -590,7 +590,7 @@ class TestErrorHandling:
             finally:
                 os.chdir(original_cwd)
 
-    def test_file_encoding_issues(self):
+    def test_file_encoding_issues(self) -> None:
         """Test handling of files with different encodings."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -636,7 +636,7 @@ class TestErrorHandling:
 class TestComplexDocuments:
     """Integration tests for complex document structures."""
 
-    def test_document_with_packages_and_includes(self):
+    def test_document_with_packages_and_includes(self) -> None:
         """Test complex document with packages, graphics, and multiple includes."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -740,7 +740,7 @@ class TestComplexDocuments:
             finally:
                 os.chdir(original_cwd)
 
-    def test_document_with_subdirectories(self):
+    def test_document_with_subdirectories(self) -> None:
         """Test document with includes from subdirectories."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -810,7 +810,7 @@ class TestComplexDocuments:
 class TestConfigurationOptions:
     """Integration tests for different configuration options."""
 
-    def test_custom_graphics_extensions(self):
+    def test_custom_graphics_extensions(self) -> None:
         """Test flattening with custom graphics extensions."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -857,7 +857,7 @@ class TestConfigurationOptions:
             finally:
                 os.chdir(original_cwd)
 
-    def test_custom_root_directory(self):
+    def test_custom_root_directory(self) -> None:
         """Test flattening with custom root directory configuration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -902,7 +902,7 @@ class TestConfigurationOptions:
 class TestPerformanceAndLimits:
     """Integration tests for performance and system limits."""
 
-    def test_large_number_of_includes(self):
+    def test_large_number_of_includes(self) -> None:
         """Test flattening document with many include files."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()
@@ -941,7 +941,7 @@ class TestPerformanceAndLimits:
             finally:
                 os.chdir(original_cwd)
 
-    def test_deeply_nested_includes(self):
+    def test_deeply_nested_includes(self) -> None:
         """Test flattening with deeply nested include structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
             original_cwd = os.getcwd()

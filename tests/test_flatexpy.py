@@ -12,6 +12,7 @@ from flatexpy.flatexpy import (
     LatexExpandConfig,
     LatexExpander,
     LatexExpandError,
+    _create_output_dir,
     main,
 )
 
@@ -19,7 +20,7 @@ from flatexpy.flatexpy import (
 class TestLatexExpandConfig:
     """Test cases for LatexExpandConfig dataclass."""
 
-    def test_default_values(self):
+    def test_default_values(self) -> None:
         """Test that default configuration values are set correctly."""
         config = LatexExpandConfig()
         assert config.graphic_extensions == [".pdf", ".png", ".jpg", ".jpeg", ".eps"]
@@ -27,7 +28,7 @@ class TestLatexExpandConfig:
         assert config.root_directory == "."
         assert config.output_encoding == "utf-8"
 
-    def test_custom_values(self):
+    def test_custom_values(self) -> None:
         """Test that custom configuration values are set correctly."""
         config = LatexExpandConfig(
             graphic_extensions=[".png", ".svg"],
@@ -44,20 +45,13 @@ class TestLatexExpandConfig:
 class TestExceptions:
     """Test cases for custom exception classes."""
 
-    def test_latex_expand_error(self):
+    def test_latex_expand_error(self) -> None:
         """Test LatexExpandError exception."""
         with pytest.raises(LatexExpandError) as exc_info:
             raise LatexExpandError("Test error message")
         assert str(exc_info.value) == "Test error message"
 
-    def test_file_not_found_error(self):
-        """Test FileNotFoundError exception."""
-        with pytest.raises(FileNotFoundError) as exc_info:
-            raise FileNotFoundError("File not found")
-        assert str(exc_info.value) == "File not found"
-        assert issubclass(FileNotFoundError, LatexExpandError)
-
-    def test_graphics_not_found_error(self):
+    def test_graphics_not_found_error(self) -> None:
         """Test GraphicsNotFoundError exception."""
         with pytest.raises(GraphicsNotFoundError) as exc_info:
             raise GraphicsNotFoundError("Graphics not found")
@@ -65,34 +59,54 @@ class TestExceptions:
         assert issubclass(GraphicsNotFoundError, LatexExpandError)
 
 
+class TestCreateDir:
+    @patch("os.makedirs")
+    @patch("pathlib.Path.exists")
+    def test_create_output_dir_success(
+        self, mock_exists: MagicMock, mock_makedirs: MagicMock
+    ) -> None:
+        """Test successful output directory creation."""
+        mock_exists.return_value = False
+        _create_output_dir("output", False)
+        mock_makedirs.assert_called_once()
+
+    @patch("pathlib.Path.exists")
+    def test_create_output_dir_exists(self, mock_exists: MagicMock) -> None:
+        """Test output directory creation when directory exists."""
+        mock_exists.return_value = True
+
+        with pytest.raises(FileExistsError):
+            _create_output_dir("output", False)
+
+
 class TestLatexExpander:
     """Test cases for LatexExpander class."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Set up test fixtures."""
         self.config = LatexExpandConfig()
         self.expander = LatexExpander(self.config)
 
-    def test_init_with_config(self):
+    def test_init_with_config(self) -> None:
         """Test initialization with custom config."""
         custom_config = LatexExpandConfig(ignore_commented_lines=False)
         expander = LatexExpander(custom_config)
         assert expander.config == custom_config
 
-    def test_init_without_config(self):
+    def test_init_without_config(self) -> None:
         """Test initialization with default config."""
         expander = LatexExpander()
         assert isinstance(expander.config, LatexExpandConfig)
         assert expander.config.ignore_commented_lines is True
 
-    def test_is_line_commented(self):
+    def test_is_line_commented(self) -> None:
         """Test comment line detection."""
         assert self.expander._is_line_commented("% This is a comment")
         assert self.expander._is_line_commented("  % Comment with spaces")
         assert not self.expander._is_line_commented("Not a comment")
         assert not self.expander._is_line_commented("\\input{file} % inline comment")
 
-    def test_extract_graphics_paths(self):
+    def test_extract_graphics_paths(self) -> None:
         """Test graphics path extraction."""
         line1 = "\\graphicspath{{figures/}{images/}}"
         paths1 = self.expander._extract_graphics_paths(line1)
@@ -107,14 +121,14 @@ class TestLatexExpander:
         assert paths3 == []
 
     @patch("pathlib.Path.exists")
-    def test_resolve_file_path_exists(self, mock_exists):
+    def test_resolve_file_path_exists(self, mock_exists: MagicMock) -> None:
         """Test file path resolution when file exists."""
         mock_exists.return_value = True
         result = self.expander._resolve_file_path("test.tex")
         assert result == Path("test.tex")
 
     @patch("pathlib.Path.exists")
-    def test_resolve_file_path_with_tex_extension(self, mock_exists):
+    def test_resolve_file_path_with_tex_extension(self, mock_exists: MagicMock) -> None:
         """Test file path resolution with automatic .tex extension."""
 
         def side_effect():
@@ -129,7 +143,7 @@ class TestLatexExpander:
         assert result == Path("test.tex")
 
     @patch("pathlib.Path.exists")
-    def test_resolve_file_path_not_found(self, mock_exists):
+    def test_resolve_file_path_not_found(self, mock_exists: MagicMock) -> None:
         """Test file path resolution when file doesn't exist."""
         mock_exists.return_value = False
         with pytest.raises(FileNotFoundError):
@@ -137,7 +151,9 @@ class TestLatexExpander:
 
     @patch("os.path.exists")
     @patch("os.path.join")
-    def test_find_graphics_file_found(self, mock_join, mock_exists):
+    def test_find_graphics_file_found(
+        self, mock_join: MagicMock, mock_exists: MagicMock
+    ) -> None:
         """Test finding graphics file when it exists."""
         mock_exists.return_value = True
         mock_join.return_value = "figures/image.png"
@@ -146,7 +162,7 @@ class TestLatexExpander:
         assert result == "figures/image.png"
 
     @patch("os.path.exists")
-    def test_find_graphics_file_not_found(self, mock_exists):
+    def test_find_graphics_file_not_found(self, mock_exists: MagicMock) -> None:
         """Test finding graphics file when it doesn't exist."""
         mock_exists.return_value = False
 
@@ -156,7 +172,9 @@ class TestLatexExpander:
     @patch("shutil.copy2")
     @patch("os.path.basename")
     @patch("os.path.join")
-    def test_copy_graphics_file_success(self, mock_join, mock_basename, mock_copy):
+    def test_copy_graphics_file_success(
+        self, mock_join: MagicMock, mock_basename: MagicMock, mock_copy: MagicMock
+    ) -> None:
         """Test successful graphics file copying."""
         mock_basename.return_value = "image.png"
         mock_join.return_value = "output/image.png"
@@ -167,7 +185,7 @@ class TestLatexExpander:
         assert "source/image.png" in self.expander._collected_graphics
 
     @patch("shutil.copy2")
-    def test_copy_graphics_file_already_copied(self, mock_copy):
+    def test_copy_graphics_file_already_copied(self, mock_copy: MagicMock) -> None:
         """Test that already copied graphics are skipped."""
         self.expander._collected_graphics.add("source/image.png")
 
@@ -178,7 +196,9 @@ class TestLatexExpander:
     @patch("shutil.copy2")
     @patch("os.path.basename")
     @patch("os.path.join")
-    def test_copy_graphics_file_io_error(self, mock_join, mock_basename, mock_copy):
+    def test_copy_graphics_file_io_error(
+        self, mock_join: MagicMock, mock_basename: MagicMock, mock_copy: MagicMock
+    ) -> None:
         """Test graphics file copying with IO error."""
         mock_basename.return_value = "image.png"
         mock_join.return_value = "output/image.png"
@@ -187,7 +207,7 @@ class TestLatexExpander:
         with pytest.raises(LatexExpandError):
             self.expander._copy_graphics_file("source/image.png", "output")
 
-    def test_process_includegraphics_found(self):
+    def test_process_includegraphics_found(self) -> None:
         """Test processing includegraphics when file is found."""
         with (
             patch.object(self.expander, "_find_graphics_file") as mock_find,
@@ -202,7 +222,7 @@ class TestLatexExpander:
             assert "image.png" in result
             mock_copy.assert_called_once()
 
-    def test_process_includegraphics_not_found(self):
+    def test_process_includegraphics_not_found(self) -> None:
         """Test processing includegraphics when file is not found."""
         with patch.object(self.expander, "_find_graphics_file") as mock_find:
             mock_find.return_value = None
@@ -212,13 +232,13 @@ class TestLatexExpander:
 
             assert result == line
 
-    def test_process_includegraphics_no_match(self):
+    def test_process_includegraphics_no_match(self) -> None:
         """Test processing line without includegraphics command."""
         line = "This is just text"
         result = self.expander._process_includegraphics(line, ".", "output")
         assert result == line
 
-    def test_process_input_include_found(self):
+    def test_process_input_include_found(self) -> None:
         """Test processing input/include commands when file is found."""
         with (
             patch.object(self.expander, "_resolve_file_path") as mock_resolve,
@@ -238,7 +258,7 @@ class TestLatexExpander:
             assert "Included content" in result
             assert "<<< input{included} <<<" in result
 
-    def test_process_input_include_not_found(self):
+    def test_process_input_include_not_found(self) -> None:
         """Test processing input/include commands when file is not found."""
         with patch.object(self.expander, "_resolve_file_path") as mock_resolve:
             mock_resolve.side_effect = FileNotFoundError("File not found")
@@ -251,7 +271,7 @@ class TestLatexExpander:
             assert not was_processed
             assert result == line
 
-    def test_process_input_include_no_match(self):
+    def test_process_input_include_no_match(self) -> None:
         """Test processing line without input/include commands."""
         line = "This is just text"
         result, was_processed = self.expander._process_input_include(
@@ -264,7 +284,9 @@ class TestLatexExpander:
     @patch("builtins.open", new_callable=mock_open, read_data="Line 1\nLine 2\n")
     @patch("os.path.abspath")
     @patch("os.path.dirname")
-    def test_flatten_file_basic(self, mock_dirname, mock_abspath, mock_file):
+    def test_flatten_file_basic(
+        self, mock_dirname: MagicMock, mock_abspath: MagicMock, mock_file: MagicMock
+    ) -> None:
         """Test basic file flattening."""
         mock_abspath.return_value = "/abs/path/file.tex"
         mock_dirname.return_value = "/abs/path"
@@ -275,7 +297,9 @@ class TestLatexExpander:
 
     @patch("builtins.open", new_callable=mock_open, read_data="Line 1\nLine 2\n")
     @patch("os.path.abspath")
-    def test_flatten_file_already_visited(self, mock_abspath, mock_file):
+    def test_flatten_file_already_visited(
+        self, mock_abspath: MagicMock, mock_file: MagicMock
+    ) -> None:
         """Test that already visited files are skipped."""
         mock_abspath.return_value = "/abs/path/file.tex"
         self.expander._visited_files.add("/abs/path/file.tex")
@@ -285,38 +309,21 @@ class TestLatexExpander:
         assert result == ""
 
     @patch("builtins.open")
-    def test_flatten_file_io_error(self, mock_open_func):
+    def test_flatten_file_io_error(self, mock_open_func: MagicMock) -> None:
         """Test file flattening with IO error."""
         mock_open_func.side_effect = IOError("Permission denied")
 
         with pytest.raises(LatexExpandError):
             self.expander._flatten_file("file.tex", ".", "output")
 
-    @patch("os.makedirs")
-    @patch("pathlib.Path.exists")
-    def test_create_output_dir_success(self, mock_exists, mock_makedirs):
-        """Test successful output directory creation."""
-        mock_exists.return_value = False
-
-        self.expander._create_output_dir("output")
-
-        mock_makedirs.assert_called_once()
-
-    @patch("pathlib.Path.exists")
-    def test_create_output_dir_exists(self, mock_exists):
-        """Test output directory creation when directory exists."""
-        mock_exists.return_value = True
-
-        with pytest.raises(FileExistsError):
-            self.expander._create_output_dir("output")
-
-    def test_flatten_latex_integration(self):
+    def test_flatten_latex_integration(self) -> None:
         """Test full LaTeX flattening integration."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create test files
             input_file = os.path.join(temp_dir, "main.tex")
             output_dir = os.path.join(temp_dir, "output")
             output_file = os.path.join(output_dir, "main_flat.tex")
+            os.makedirs(output_dir)
 
             with open(input_file, "w") as f:
                 f.write(
@@ -337,12 +344,19 @@ class TestLatexExpander:
 class TestMainFunction:
     """Test cases for main function and CLI argument parsing."""
 
-    @patch("sys.argv", ["flatexpy.py", "input.tex"])
-    @patch("flatexpy.LatexExpander.flatten_latex")
+    @patch("sys.argv", ["flatexpy.py", "input.tex", "--force"])
+    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy._create_output_dir")
     @patch("builtins.print")
-    def test_main_basic(self, mock_print, mock_flatten):
+    def test_main_basic(
+        self,
+        mock_print: MagicMock,
+        mock_flatten: MagicMock,
+        mock_createoutput: MagicMock,
+    ) -> None:
         """Test basic main function execution."""
         mock_flatten.return_value = "flattened content"
+        mock_createoutput.return_value = None
 
         main()
 
@@ -350,21 +364,28 @@ class TestMainFunction:
         mock_print.assert_called_once()
 
     @patch("sys.argv", ["flatexpy.py", "input.tex", "--verbose"])
-    @patch("flatexpy.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy._create_output_dir")
     @patch("logging.getLogger")
-    def test_main_verbose(self, mock_get_logger, mock_flatten):
+    def test_main_verbose(
+        self,
+        mock_get_logger: MagicMock,
+        mock_flatten: MagicMock,
+        mock_createoutput: MagicMock,
+    ) -> None:
         """Test main function with verbose flag."""
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
         mock_flatten.return_value = "flattened content"
+        mock_createoutput.return_value = None
 
         main()
 
         mock_logger.setLevel.assert_called()
 
-    @patch("sys.argv", ["flatexpy.py", "input.tex", "-o", "custom_output/"])
-    @patch("flatexpy.LatexExpander.flatten_latex")
-    def test_main_custom_output(self, mock_flatten):
+    @patch("sys.argv", ["flatexpy.py", "input.tex", "-o", "custom_output/", "-f"])
+    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
+    def test_main_custom_output(self, mock_flatten: MagicMock) -> None:
         """Test main function with custom output directory."""
         mock_flatten.return_value = "flattened content"
 
@@ -374,12 +395,20 @@ class TestMainFunction:
         assert "custom_output/" in args[1]
 
     @patch("sys.argv", ["flatexpy.py", "input.tex"])
-    @patch("flatexpy.LatexExpander.flatten_latex")
-    @patch("builtins.exit")
+    @patch("flatexpy.flatexpy.LatexExpander.flatten_latex")
+    @patch("flatexpy.flatexpy._create_output_dir")
+    @patch("sys.exit")
     @patch("builtins.print")
-    def test_main_error_handling(self, mock_print, mock_exit, mock_flatten):
+    def test_main_error_handling(
+        self,
+        mock_print: MagicMock,
+        mock_exit: MagicMock,
+        mock_flatten: MagicMock,
+        mock_createoutput: MagicMock,
+    ) -> None:
         """Test main function error handling."""
         mock_flatten.side_effect = LatexExpandError("Test error")
+        mock_createoutput.return_value = None
 
         main()
 
@@ -390,7 +419,7 @@ class TestMainFunction:
 class TestEndToEnd:
     """End-to-end integration tests."""
 
-    def test_full_workflow_with_includes(self):
+    def test_full_workflow_with_includes(self) -> None:
         """Test complete workflow with includes and graphics."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Set working directory to temp_dir for relative path resolution
@@ -414,6 +443,7 @@ class TestEndToEnd:
                 # Create output directory
                 output_dir = "output"
                 output_file = os.path.join(output_dir, "main_flat.tex")
+                os.makedirs(output_dir)
 
                 # Test flattening
                 config = LatexExpandConfig(root_directory=".")
@@ -427,7 +457,7 @@ class TestEndToEnd:
             finally:
                 os.chdir(original_cwd)
 
-    def test_graphics_processing(self):
+    def test_graphics_processing(self) -> None:
         """Test graphics file processing and copying."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Set working directory to temp_dir for relative path resolution
@@ -451,6 +481,7 @@ class TestEndToEnd:
                 # Create output directory
                 output_dir = "output"
                 output_file = os.path.join(output_dir, "main_flat.tex")
+                os.makedirs(output_dir)
 
                 # Test flattening
                 config = LatexExpandConfig(root_directory=".")
