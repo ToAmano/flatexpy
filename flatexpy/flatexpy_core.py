@@ -105,7 +105,9 @@ class LatexExpander:
             tex_path = path.with_suffix(".tex")
             if tex_path.exists():
                 return tex_path
-            raise FileNotFoundError(f"File not found: {file_path}")
+            raise FileNotFoundError(
+                f"Coud not resolve filepath, File not found: {file_path}"
+            )
         return path
 
     def _is_line_commented(self, line: str) -> bool:
@@ -240,7 +242,7 @@ class LatexExpander:
             return line, False
 
         cmd, relative_path = match.groups()
-        include_path = root_dir + "/" + relative_path
+        include_path = os.path.join(root_dir, relative_path)
 
         if not include_path.endswith(".tex"):
             include_path += ".tex"
@@ -261,7 +263,7 @@ class LatexExpander:
             return result, True
 
         except FileNotFoundError:
-            logger.warning("File not found: %s", include_path)
+            logger.warning(" Failed to process input, File not found: %s", include_path)
             return line, False
 
     def _read_file(self, file_path: str) -> List[str]:
@@ -423,7 +425,7 @@ def main() -> None:
     )
 
     # extract root dir
-    root_dir: str = os.path.split(args.input_file)[0]
+    root_dir = os.path.dirname(args.input_file) or "./"
 
     # Create configuration
     config = LatexExpandConfig(
