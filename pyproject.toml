@@ -65,9 +65,10 @@ docs = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["flatexpy*"]
-exclude = ["tests*"]
+where = ["flatexpy"]
+
+[tool.setuptools.package-dir]
+"" = "flatexpy"
 
 [tool.setuptools.package-data]
 flatexpy = ["py.typed"]
@@ -125,10 +126,10 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--verbose",
-    "--cov=flatexpy",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
+    # "--cov=flatexpy",
+    # "--cov-report=term-missing",
+    # "--cov-report=html",
+    # "--cov-report=xml",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
