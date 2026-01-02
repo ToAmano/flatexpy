@@ -78,8 +78,12 @@ class LatexExpander:
         # Compiled regex patterns for better performance
         self._input_pattern = re.compile(r"\\(input|include)\{([^}]+)\}")
         self._graphicspath_pattern = re.compile(r"\\graphicspath\{((\{[^}]+\})+)\}")
+        # \includegraphics[...]{image.pdf}
+        # From AAS macros:
+        # \plotone{image.pdf}
+        # \plottwo{image1.jpg}{image2.pdf}
         self._includegraphics_pattern = re.compile(
-            r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}"
+            r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\{([^}]+)\})?"
         )
 
         # State tracking
@@ -211,14 +215,20 @@ class LatexExpander:
         match = self._includegraphics_pattern.search(line)
         if not match:
             return line
-        graphic_name: str = match.group(1)
-        graphics_path = self._find_graphics_file(graphic_name, root_dir)
-        if graphics_path:
-            filename: str = os.path.basename(graphics_path)
-            self._copy_graphics_file(graphics_path, output_dir)
-            line = line.replace(graphic_name, filename)
-            return line
-        logger.warning("Graphics file not found: \\includegraphics{%s}", graphic_name)
+        for graphic_name in match.groups():
+            if not graphic_name:
+                # This happens when plottwo is not used and there is only
+                # one match.
+                continue
+            graphics_path = self._find_graphics_file(graphic_name, root_dir)
+            if graphics_path:
+                filename: str = os.path.basename(graphics_path)
+                self._copy_graphics_file(graphics_path, output_dir)
+                line = line.replace(graphic_name, filename)
+            else:
+                logger.warning(
+                    "Graphics file not found: \\includegraphics{%s}", graphic_name
+                )
         return line
 
     def _process_input_include(
