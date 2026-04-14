@@ -179,6 +179,64 @@ class TestComplexDocuments:
             finally:
                 os.chdir(original_cwd)
 
+    def test_document_with_texmfhome_bibliography(self) -> None:
+        """Test bibliography merging from local files and TEXMFHOME."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            original_cwd = os.getcwd()
+            os.chdir(temp_dir)
+
+            try:
+                texmfhome = os.path.join(temp_dir, "texmf")
+                os.makedirs("sections")
+                os.makedirs("output")
+                os.makedirs(os.path.join(texmfhome, "bibtex", "bib", "lsst"), exist_ok=True)
+
+                with open("main.tex", "w", encoding="utf-8") as f:
+                    f.write(
+                        "\\documentclass{article}\n"
+                        "\\begin{document}\n"
+                        "\\cite{localkey}\n"
+                        "\\input{sections/body}\n"
+                        "\\bibliography{local,lsst}\n"
+                        "\\end{document}\n"
+                    )
+
+                with open("sections/body.tex", "w", encoding="utf-8") as f:
+                    f.write("External citation \\citep{texmfkey}.\n")
+
+                with open("local.bib", "w", encoding="utf-8") as f:
+                    f.write(
+                        "@article{localkey,\n"
+                        "  title = {Local Reference}\n"
+                        "}\n"
+                    )
+
+                with open(
+                    os.path.join(texmfhome, "bibtex", "bib", "lsst", "lsst.bib"),
+                    "w",
+                    encoding="utf-8",
+                ) as f:
+                    f.write(
+                        "@article{texmfkey,\n"
+                        "  title = {TEXMFHOME Reference}\n"
+                        "}\n"
+                    )
+
+                config = LatexExpandConfig(root_directory=".", texmfhome=texmfhome)
+                expander = LatexExpander(config)
+                result = expander.flatten_latex("main.tex", "output/main_flat.tex")
+
+                assert "\\bibliography{main_flattened}" in result
+                assert os.path.exists("output/main_flattened.bib")
+
+                with open("output/main_flattened.bib", "r", encoding="utf-8") as f:
+                    merged_bib = f.read()
+                    assert "localkey" in merged_bib
+                    assert "texmfkey" in merged_bib
+
+            finally:
+                os.chdir(original_cwd)
+
     def test_academic_paper_structure(self) -> None:
         """Test realistic academic paper structure."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -323,6 +381,13 @@ class TestComplexDocuments:
                 for fig in figures:
                     with open(f"figures/{fig}", "wb") as f:
                         f.write(f"fake {fig} data".encode())
+
+                with open("references.bib", "w", encoding="utf-8") as f:
+                    f.write(
+                        "@article{paperref,\n"
+                        "  title = {Paper Reference}\n"
+                        "}\n"
+                    )
 
                 os.makedirs("output")
 
@@ -497,6 +562,13 @@ class TestComplexDocuments:
                 # Create figure
                 with open("figures/architecture.pdf", "wb") as f:
                     f.write(b"architecture diagram data")
+
+                with open("thesis_refs.bib", "w", encoding="utf-8") as f:
+                    f.write(
+                        "@article{thesisref,\n"
+                        "  title = {Thesis Reference}\n"
+                        "}\n"
+                    )
 
                 os.makedirs("output")
 

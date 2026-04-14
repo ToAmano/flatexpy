@@ -13,6 +13,8 @@ A LaTeX flattening utility for academic paper submission that recursively proces
 - **Flattens LaTeX documents** by recursively processing `\input` and `\include` commands
 - **Copies graphics files** referenced by `\includegraphics` to the output directory
 - **Supports `\graphicspath`** command for flexible graphics organization
+- **Builds a unified BibTeX database** from cited entries referenced by `\bibliography{...}`
+- **Resolves bibliography databases from `TEXMFHOME`** using standard BibTeX-style lookup
 - **Preserves document structure** with clear include markers
 - **Handles circular dependencies** gracefully
 - **Configurable graphics extensions** (PDF, PNG, JPG, EPS, etc.)
@@ -114,6 +116,7 @@ flatexpy main.tex -o submission/
 # Result
 submission/
 ├── main_flattened.tex  # Single file with all content
+├── main_flattened.bib  # Unified bibliography with cited entries
 ├── diagram1.pdf        # Copied graphics
 └── plot1.png
 ```
@@ -151,6 +154,16 @@ flatexpy automatically processes `\graphicspath` commands:
 \graphicspath{{figures/}{images/}}
 \includegraphics{plot1}  % Finds figures/plot1.png or images/plot1.png
 ```
+
+### BibTeX Handling
+
+flatexpy scans `\cite...{}` and `\bibliography{...}` commands while flattening. It then writes a merged `.bib` file next to the flattened document and rewrites the LaTeX to reference that unified bibliography.
+
+```latex
+\bibliography{local,lsst,lsst-dm,refs_ads,refs,books,ivoa}
+```
+
+The resolver checks local `.bib` files first, then searches `TEXMFHOME` for matching database names.
 
 ### Include Markers
 
@@ -212,7 +225,6 @@ tox -e lint
 
 - [ ] Feature for removing commented lines
 - [ ] Support for standalone and import packages
-- [ ] Support for bibtex
 
 ## Contributing
 
