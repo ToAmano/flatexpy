@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from pybtex.database import parse_file
 
 from flatexpy.flatexpy_core import (
     GraphicsNotFoundError,
@@ -42,6 +43,8 @@ class TestLatexExpanderCore:
         assert len(self.expander._visited_files) == 0
         assert len(self.expander._graphics_paths) == 0
         assert len(self.expander._collected_graphics) == 0
+        assert len(self.expander._bibliography_files) == 0
+        assert len(self.expander._citation_keys) == 0
 
     def test_compiled_patterns(self) -> None:
         """Test that regex patterns are compiled correctly."""
@@ -57,7 +60,12 @@ class TestLatexExpanderCore:
         # Test includegraphics pattern
         assert (
             self.expander._includegraphics_pattern.pattern
-            == r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}"
+            == r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\{([^}]+)\})?"
+        )
+        assert self.expander._bibliography_pattern.pattern == r"\\bibliography\{([^}]+)\}"
+        assert (
+            self.expander._citation_pattern.pattern
+            == r"\\(?:cite[a-zA-Z*]*|nocite)\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}"
         )
 
     def test_is_line_commented(self) -> None:
@@ -130,6 +138,68 @@ class TestLatexExpanderCore:
         line3 = "\\graphicspath{{figures/}}"
         self.expander._update_graphics_path(line3)
         assert self.expander._graphics_paths == ["figures", "images"]
+
+    def test_extract_bibliography_files(self) -> None:
+        """Test extracting bibliography database names."""
+        line = "\\bibliography{local,lsst, refs_ads}"
+        assert self.expander._extract_bibliography_files(line) == [
+            "local",
+            "lsst",
+            "refs_ads",
+        ]
+
+    def test_extract_citation_keys(self) -> None:
+        """Test extracting citation keys from cite-like commands."""
+        line = "Text \\citep[see][]{key1,key2} and \\nocite{key3}"
+        assert self.expander._extract_citation_keys(line) == ["key1", "key2", "key3"]
+
+    def test_rewrite_bibliography_command(self) -> None:
+        """Test rewriting bibliography command to merged output."""
+        self.expander._bib_output_stem = "main_flattened"
+        line = "\\bibliography{local,lsst}\n"
+        assert (
+            self.expander._rewrite_bibliography_command(line)
+            == "\\bibliography{main_flattened}\n"
+        )
+
+    def test_resolve_bib_path_prefers_local_file(self) -> None:
+        """Test local bibliography databases are preferred over TEXMFHOME."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            texmf_dir = root_dir / "texmf"
+            local_bib = root_dir / "refs.bib"
+            texmf_bib = texmf_dir / "bibtex" / "bib" / "misc" / "refs.bib"
+            texmf_bib.parent.mkdir(parents=True)
+            local_bib.write_text("@article{localref, title={Local}}\n", encoding="utf-8")
+            texmf_bib.write_text("@article{texmfref, title={Texmf}}\n", encoding="utf-8")
+
+            expander = LatexExpander(
+                LatexExpandConfig(root_directory=temp_dir, texmfhome=str(texmf_dir))
+            )
+            assert expander._resolve_bib_path("refs", temp_dir) == local_bib
+
+    def test_collect_bib_entries_keeps_first_duplicate(self) -> None:
+        """Test duplicate keys keep the first database entry."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            first_bib = Path(temp_dir) / "first_refs.bib"
+            second_bib = Path(temp_dir) / "second_refs.bib"
+            first_bib.write_text(
+                "@article{dupkey, title={First Title}}\n", encoding="utf-8"
+            )
+            second_bib.write_text(
+                "@article{dupkey, title={Second Title}}\n", encoding="utf-8"
+            )
+
+            first_db = parse_file(str(first_bib))
+            second_db = parse_file(str(second_bib))
+
+            self.expander._collect_bib_entries(first_db, str(first_bib))
+            self.expander._collect_bib_entries(second_db, str(second_bib))
+
+            assert (
+                self.expander._bib_entries_by_key["dupkey"].fields["title"]
+                == "First Title"
+            )
 
     def test_show_config(self) -> None:
         """Test configuration display."""
@@ -383,3 +453,52 @@ class TestLatexExpanderCore:
             with open(output_file, "r") as f:
                 content = f.read()
                 assert content == result
+
+    def test_flatten_latex_writes_merged_bibliography(self) -> None:
+        """Test bibliography collection and unified .bib generation."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_file = os.path.join(temp_dir, "main.tex")
+            included_file = os.path.join(temp_dir, "section.tex")
+            bibliography_file = os.path.join(temp_dir, "refs.bib")
+            output_dir = os.path.join(temp_dir, "output")
+            output_file = os.path.join(output_dir, "main_flat.tex")
+            os.makedirs(output_dir)
+
+            with open(input_file, "w", encoding="utf-8") as f:
+                f.write(
+                    "\\documentclass{article}\n"
+                    "\\begin{document}\n"
+                    "\\citep{alpha}\n"
+                    "\\input{section}\n"
+                    "\\bibliography{refs}\n"
+                    "\\end{document}\n"
+                )
+
+            with open(included_file, "w", encoding="utf-8") as f:
+                f.write("Nested cite \\cite{beta}.\n")
+
+            with open(bibliography_file, "w", encoding="utf-8") as f:
+                f.write(
+                    "@article{alpha,\n"
+                    "  title = {Alpha Title}\n"
+                    "}\n\n"
+                    "@article{beta,\n"
+                    "  title = {Beta Title}\n"
+                    "}\n\n"
+                    "@article{gamma,\n"
+                    "  title = {Gamma Title}\n"
+                    "}\n"
+                )
+
+            expander = LatexExpander(LatexExpandConfig(root_directory=temp_dir))
+            result = expander.flatten_latex(input_file, output_file)
+
+            merged_bib = os.path.join(output_dir, "main_flattened.bib")
+            assert "\\bibliography{main_flattened}" in result
+            assert os.path.exists(merged_bib)
+
+            with open(merged_bib, "r", encoding="utf-8") as f:
+                merged_content = f.read()
+                assert "alpha" in merged_content
+                assert "beta" in merged_content
+                assert "gamma" not in merged_content

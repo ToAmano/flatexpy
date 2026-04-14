@@ -5,7 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flatexpy"
 version = "0.0.1"
-dependencies = []
+dependencies = [
+  "pybtex >= 0.24",
+]
 requires-python = ">=3.9"
 authors = [
   {name = "Tomohito Amano", email = "amanotomohito040@gmail.com"}
