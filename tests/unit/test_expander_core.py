@@ -502,3 +502,20 @@ class TestLatexExpanderCore:
                 assert "alpha" in merged_content
                 assert "beta" in merged_content
                 assert "gamma" not in merged_content
+
+    def test_normalize_bibliography_output_fixes_pybtex_escaping(self) -> None:
+        """Test post-processing for known pybtex escaping issues."""
+        output = (
+            "@article{ref,\n"
+            "  title = {A\\\\_B and C\\\\#D},\n"
+            "  url = {https://example.com/a\\\\_b\\\\#c},\n"
+            "  doi = {10.1234/foo\\\\_bar},\n"
+            "  adsurl = {https://ads.example/x\\\\_y}\n"
+            "}\n"
+        )
+
+        normalized = self.expander._normalize_bibliography_output(output)
+        assert "title = {A\\_B and C\\#D}" in normalized
+        assert "url = {https://example.com/a_b#c}" in normalized
+        assert "doi = {10.1234/foo_bar}" in normalized
+        assert "adsurl = {https://ads.example/x_y}" in normalized
