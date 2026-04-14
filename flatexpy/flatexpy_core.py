@@ -228,10 +228,29 @@ class LatexExpander:
             self._add_bib_entry_with_crossref(citation_key, selected_entries)
 
         output_path = Path(output_dir) / f"{self._bib_output_stem}.bib"
-        BibliographyData(entries=selected_entries).to_file(
-            str(output_path), bib_format="bibtex"
-        )
+        output = BibliographyData(entries=selected_entries).to_string("bibtex")
+        normalized_output = self._normalize_bibliography_output(output)
+        output_path.write_text(normalized_output, encoding=self.config.output_encoding)
         logger.info("Unified bibliography written to: %s", output_path)
+
+    def _normalize_bibliography_output(self, output: str) -> str:
+        """Fix known pybtex escaping issues in serialized BibTeX output."""
+        # pybtex currently escapes existing escapes, so collapse doubled
+        # backslashes after serialization.
+        # See
+        # https://codeberg.org/pybtex/pybtex/issues/28#issuecomment-12578364
+        output = output.replace("\\\\", "\\")
+
+        # URL-like fields should not keep pybtex's additional escaping.
+        lines = output.splitlines()
+        for index, line in enumerate(lines):
+            if re.match(r"^\s*(adsurl|url|doi) =", line):
+                lines[index] = line.replace("\\", "")
+
+        normalized_output = "\n".join(lines)
+        if output.endswith("\n"):
+            normalized_output += "\n"
+        return normalized_output
 
     def _resolve_file_path(self, file_path: str) -> Path:
         """Resolve file path and check existence.
