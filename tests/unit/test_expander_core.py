@@ -468,14 +468,14 @@ class TestLatexExpanderCore:
                 f.write(
                     "\\documentclass{article}\n"
                     "\\begin{document}\n"
-                    "\\citep{alpha}\n"
+                    "\\citep{beta}\n"
                     "\\input{section}\n"
                     "\\bibliography{refs}\n"
                     "\\end{document}\n"
                 )
 
             with open(included_file, "w", encoding="utf-8") as f:
-                f.write("Nested cite \\cite{beta}.\n")
+                f.write("Nested cite \\cite{alpha}.\n")
 
             with open(bibliography_file, "w", encoding="utf-8") as f:
                 f.write(
@@ -502,6 +502,9 @@ class TestLatexExpanderCore:
                 assert "alpha" in merged_content
                 assert "beta" in merged_content
                 assert "gamma" not in merged_content
+                assert merged_content.index("@article{alpha") < merged_content.index(
+                    "@article{beta"
+                )
 
     def test_normalize_bibliography_output_fixes_pybtex_escaping(self) -> None:
         """Test post-processing for known pybtex escaping issues."""
