@@ -133,12 +133,13 @@ class LatexExpander:
             )
         return citation_keys
 
-    def _update_bibliography_state(self, line: str) -> None:
+    def _update_bibliography_state(self, line: str) -> bool:
         """Track bibliography databases and cited keys from a line."""
         if not self.config.enable_bibtex:
-            return
+            return False
 
-        for bib_name in self._extract_bibliography_files(line):
+        bibliography_files = self._extract_bibliography_files(line)
+        for bib_name in bibliography_files:
             if bib_name not in self._bibliography_files:
                 self._bibliography_files.append(bib_name)
 
@@ -146,6 +147,8 @@ class LatexExpander:
             if citation_key not in self._seen_citation_keys:
                 self._seen_citation_keys.add(citation_key)
                 self._citation_keys.append(citation_key)
+
+        return bool(bibliography_files)
 
     def _rewrite_bibliography_command(self, line: str) -> str:
         """Rewrite bibliography commands to point at the unified output .bib."""
@@ -505,13 +508,14 @@ class LatexExpander:
                 flattened_content.append(line)
                 continue
 
-            self._update_bibliography_state(line)
+            has_bibliography = self._update_bibliography_state(line)
             # Process graphics paths
             self._update_graphics_path(line)
 
             # Process includegraphics and update line
             line = self._process_includegraphics(line, root_dir, output_dir)
-            line = self._rewrite_bibliography_command(line)
+            if has_bibliography:
+                line = self._rewrite_bibliography_command(line)
 
             # Process input/include
             processed_line, _ = self._process_input_include(line, root_dir, output_dir)
