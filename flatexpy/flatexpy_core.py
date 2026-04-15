@@ -109,6 +109,9 @@ class LatexExpander:
 
     def _extract_bibliography_files(self, line: str) -> List[str]:
         """Extract bibliography database names from a line."""
+        if "\\bibliography{" not in line:
+            return []
+
         matches = self._bibliography_pattern.findall(line)
         bibliography_files: List[str] = []
         for match in matches:
@@ -119,6 +122,9 @@ class LatexExpander:
 
     def _extract_citation_keys(self, line: str) -> List[str]:
         """Extract citation keys from cite-like commands in a line."""
+        if "\\cite" not in line and "\\nocite{" not in line:
+            return []
+
         matches = self._citation_pattern.findall(line)
         citation_keys: List[str] = []
         for match in matches:
