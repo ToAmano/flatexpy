@@ -227,6 +227,8 @@ class LatexExpander:
         for citation_key in self._citation_keys:
             self._add_bib_entry_with_crossref(citation_key, selected_entries)
 
+        selected_entries = dict(sorted(selected_entries.items()))
+
         output_path = Path(output_dir) / f"{self._bib_output_stem}.bib"
         output = BibliographyData(entries=selected_entries).to_string("bibtex")
         normalized_output = self._normalize_bibliography_output(output)
