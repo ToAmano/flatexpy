@@ -63,11 +63,8 @@ docs = [
     "sphinx-rtd-theme >= 1.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["flatexpy"]
-
-[tool.setuptools.package-dir]
-"" = "flatexpy"
+[tool.setuptools]
+packages = ["flatexpy"]
 
 [tool.setuptools.package-data]
 flatexpy = ["py.typed"]
