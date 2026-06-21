@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flatexpy"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = []
 requires-python = ">=3.9"
 authors = [
@@ -42,7 +42,7 @@ Repository = "https://github.com/ToAmano/flatexpy"
 Changelog = "https://github.com/ToAmano/flatexpy/blob/main/CHANGELOG.md"
 
 [project.scripts]
-flatexpy = "flatexpy_core:main"
+flatexpy = "flatexpy.flatexpy_core:main"
 
 [project.optional-dependencies]
 dev = [
@@ -63,11 +63,8 @@ docs = [
     "sphinx-rtd-theme >= 1.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["flatexpy"]
-
-[tool.setuptools.package-dir]
-"" = "flatexpy"
+[tool.setuptools]
+packages = ["flatexpy"]
 
 [tool.setuptools.package-data]
 flatexpy = ["py.typed"]
