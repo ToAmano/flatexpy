@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-20
+
+### Added
+- GitHub Actions workflow setup (CI test suite, pre-commit checks, auto-release, and CLI command validation).
+- Codecov test coverage reporting.
+- Development coding conventions and workflows documentation (`GEMINI.md`).
+- Pre-commit code formatters and linters (isort, black, mypy, flake8, pylint).
+
+### Fixed
+- Setuptools package discovery configuration in `pyproject.toml`.
+- Executable CLI entrypoint script path mapping.
+
 ## [1.0.0] - 2024-01-XX
 
 ### Added
