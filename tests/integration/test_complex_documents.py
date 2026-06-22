@@ -189,7 +189,9 @@ class TestComplexDocuments:
                 texmfhome = os.path.join(temp_dir, "texmf")
                 os.makedirs("sections")
                 os.makedirs("output")
-                os.makedirs(os.path.join(texmfhome, "bibtex", "bib", "lsst"), exist_ok=True)
+                os.makedirs(
+                    os.path.join(texmfhome, "bibtex", "bib", "lsst"), exist_ok=True
+                )
 
                 with open("main.tex", "w", encoding="utf-8") as f:
                     f.write(
@@ -206,9 +208,7 @@ class TestComplexDocuments:
 
                 with open("local.bib", "w", encoding="utf-8") as f:
                     f.write(
-                        "@article{localkey,\n"
-                        "  title = {Local Reference}\n"
-                        "}\n"
+                        "@article{localkey,\n" "  title = {Local Reference}\n" "}\n"
                     )
 
                 with open(
@@ -217,9 +217,7 @@ class TestComplexDocuments:
                     encoding="utf-8",
                 ) as f:
                     f.write(
-                        "@article{texmfkey,\n"
-                        "  title = {TEXMFHOME Reference}\n"
-                        "}\n"
+                        "@article{texmfkey,\n" "  title = {TEXMFHOME Reference}\n" "}\n"
                     )
 
                 config = LatexExpandConfig(root_directory=".", texmfhome=texmfhome)
@@ -384,9 +382,7 @@ class TestComplexDocuments:
 
                 with open("references.bib", "w", encoding="utf-8") as f:
                     f.write(
-                        "@article{paperref,\n"
-                        "  title = {Paper Reference}\n"
-                        "}\n"
+                        "@article{paperref,\n" "  title = {Paper Reference}\n" "}\n"
                     )
 
                 os.makedirs("output")
@@ -565,9 +561,7 @@ class TestComplexDocuments:
 
                 with open("thesis_refs.bib", "w", encoding="utf-8") as f:
                     f.write(
-                        "@article{thesisref,\n"
-                        "  title = {Thesis Reference}\n"
-                        "}\n"
+                        "@article{thesisref,\n" "  title = {Thesis Reference}\n" "}\n"
                     )
 
                 os.makedirs("output")

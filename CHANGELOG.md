@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-06-21
+
+### Added
+- GitHub Actions workflow setup (CI test suite, pre-commit checks, auto-release, and CLI command validation).
+- Codecov test coverage reporting.
+- Development coding conventions and workflows documentation (`GEMINI.md`).
+- Pre-commit code formatters and linters (isort, black, mypy, flake8, pylint).
+
+### Fixed
+- Setuptools package discovery configuration in `pyproject.toml`.
+- Executable CLI entrypoint script path mapping.
+
 ## [1.0.0] - 2024-01-XX
 
 ### Added
@@ -32,5 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform compatibility (Windows, macOS, Linux)
 - Python 3.8+ support
 
-[Unreleased]: https://github.com/ToAmano/flatexpy/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ToAmano/flatexpy/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/ToAmano/flatexpy/releases/tag/v0.0.2
 [1.0.0]: https://github.com/ToAmano/flatexpy/releases/tag/v1.0.0

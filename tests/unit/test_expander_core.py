@@ -62,7 +62,9 @@ class TestLatexExpanderCore:
             self.expander._includegraphics_pattern.pattern
             == r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\{([^}]+)\})?"
         )
-        assert self.expander._bibliography_pattern.pattern == r"\\bibliography\{([^}]+)\}"
+        assert (
+            self.expander._bibliography_pattern.pattern == r"\\bibliography\{([^}]+)\}"
+        )
         assert (
             self.expander._citation_pattern.pattern
             == r"\\(?:cite[a-zA-Z*]*|nocite)\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}"
@@ -170,8 +172,12 @@ class TestLatexExpanderCore:
             local_bib = root_dir / "refs.bib"
             texmf_bib = texmf_dir / "bibtex" / "bib" / "misc" / "refs.bib"
             texmf_bib.parent.mkdir(parents=True)
-            local_bib.write_text("@article{localref, title={Local}}\n", encoding="utf-8")
-            texmf_bib.write_text("@article{texmfref, title={Texmf}}\n", encoding="utf-8")
+            local_bib.write_text(
+                "@article{localref, title={Local}}\n", encoding="utf-8"
+            )
+            texmf_bib.write_text(
+                "@article{texmfref, title={Texmf}}\n", encoding="utf-8"
+            )
 
             expander = LatexExpander(
                 LatexExpandConfig(root_directory=temp_dir, texmfhome=str(texmf_dir))
