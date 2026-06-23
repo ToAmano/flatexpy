@@ -48,9 +48,9 @@ repos:
       entry: pylint
       language: python
       types: [python]
-      additional_dependencies: [pytest]
+      additional_dependencies: [pytest, pybtex]
       # Disable overly strict pylint checks that are not pragmatic for CLI apps
-      args: [--max-line-length,"150","--init-hook", "import sys; sys.path.insert(0, 'flatexpy')", "--disable=C0415,R0914,R0912,R0915,C0116,C0114"]
+      args: [--max-line-length,"150","--init-hook", "import sys; sys.path.insert(0, 'flatexpy')", "--disable=C0415,R0914,R0912,R0915,C0116,C0114,R0902"]
       files: ^flatexpy/
 
 # - repo: https://github.com/markdownlint/markdownlint

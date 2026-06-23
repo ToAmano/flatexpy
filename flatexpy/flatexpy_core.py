@@ -13,7 +13,9 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
+
+from pybtex.database import BibliographyData, Entry, parse_file
 
 
 def _setup_logger() -> logging.Logger:
@@ -45,6 +47,9 @@ class LatexExpandConfig:
     ignore_commented_lines: bool = True
     root_directory: str = "."
     output_encoding: str = "utf-8"
+    enable_bibtex: bool = True
+    texmfhome: Optional[str] = None
+    bib_output_name: Optional[str] = None
 
 
 class LatexExpandError(Exception):
@@ -78,14 +83,185 @@ class LatexExpander:
         # Compiled regex patterns for better performance
         self._input_pattern = re.compile(r"\\(input|include)\{([^}]+)\}")
         self._graphicspath_pattern = re.compile(r"\\graphicspath\{((\{[^}]+\})+)\}")
+        # \includegraphics[...]{image.pdf}
+        # From AAS macros:
+        # \plotone{image.pdf}
+        # \plottwo{image1.jpg}{image2.pdf}
         self._includegraphics_pattern = re.compile(
-            r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}"
+            r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\s*\{([^}]+)\})?"
+        )
+        self._bibliography_pattern = re.compile(r"\\bibliography\{([^}]+)\}")
+        self._citation_pattern = re.compile(
+            r"\\(?:cite[a-zA-Z*]*|nocite)\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}"
         )
 
         # State tracking
         self._visited_files: Set[str] = set()
         self._graphics_paths: List[str] = []
         self._collected_graphics: Set[str] = set()
+        self._bibliography_files: List[str] = []
+        self._citation_keys: List[str] = []
+        self._seen_citation_keys: Set[str] = set()
+        self._missing_citation_keys: Set[str] = set()
+        self._bib_output_stem: Optional[str] = None
+        self._bib_entries_by_key: Dict[str, Entry] = {}
+        self._bib_entry_order: List[str] = []
+
+    def _extract_bibliography_files(self, line: str) -> List[str]:
+        """Extract bibliography database names from a line."""
+        if "\\bibliography{" not in line:
+            return []
+
+        matches = self._bibliography_pattern.findall(line)
+        bibliography_files: List[str] = []
+        for match in matches:
+            bibliography_files.extend(
+                [name.strip() for name in match.split(",") if name.strip()]
+            )
+        return bibliography_files
+
+    def _extract_citation_keys(self, line: str) -> List[str]:
+        """Extract citation keys from cite-like commands in a line."""
+        if "\\cite" not in line and "\\nocite{" not in line:
+            return []
+
+        matches = self._citation_pattern.findall(line)
+        citation_keys: List[str] = []
+        for match in matches:
+            citation_keys.extend(
+                [key.strip() for key in match.split(",") if key.strip()]
+            )
+        return citation_keys
+
+    def _update_bibliography_state(self, line: str) -> bool:
+        """Track bibliography databases and cited keys from a line."""
+        if not self.config.enable_bibtex:
+            return False
+
+        bibliography_files = self._extract_bibliography_files(line)
+        for bib_name in bibliography_files:
+            if bib_name not in self._bibliography_files:
+                self._bibliography_files.append(bib_name)
+
+        for citation_key in self._extract_citation_keys(line):
+            if citation_key not in self._seen_citation_keys:
+                self._seen_citation_keys.add(citation_key)
+                self._citation_keys.append(citation_key)
+
+        return bool(bibliography_files)
+
+    def _rewrite_bibliography_command(self, line: str) -> str:
+        """Rewrite bibliography commands to point at the unified output .bib."""
+        if (
+            not self.config.enable_bibtex
+            or self._bib_output_stem is None
+            or not self._extract_bibliography_files(line)
+        ):
+            return line
+        return self._bibliography_pattern.sub(
+            rf"\\bibliography{{{self._bib_output_stem}}}", line
+        )
+
+    def _resolve_bib_path(self, bib_name: str, root_dir: str) -> Path:
+        """Resolve a BibTeX database path using BibTeX-like lookup order."""
+        candidate = Path(root_dir) / f"{bib_name}.bib"
+        if candidate.exists():
+            return candidate
+
+        texmfhome = self.config.texmfhome or os.environ.get("TEXMFHOME")
+        if texmfhome:
+            texmfhome_path = Path(texmfhome)
+            bibtex_root = texmfhome_path / "bibtex" / "bib"
+            search_roots = [bibtex_root] if bibtex_root.exists() else [texmfhome_path]
+            matches: List[Path] = []
+            for search_root in search_roots:
+                matches.extend(sorted(search_root.glob(f"**/{bib_name}.bib")))
+            if matches:
+                return matches[0]
+
+        raise LatexExpandError(f"Bibliography database not found: {bib_name}.bib")
+
+    def _collect_bib_entries(
+        self, database: BibliographyData, source_name: str
+    ) -> None:
+        """Collect entries from a database while preserving first-match order."""
+        for key, entry in database.entries.items():
+            if key in self._bib_entries_by_key:
+                logger.warning(
+                    "Duplicate bibliography entry '%s' ignored from %s",
+                    key,
+                    source_name,
+                )
+                continue
+            self._bib_entries_by_key[key] = entry
+            self._bib_entry_order.append(key)
+
+    def _add_bib_entry_with_crossref(
+        self, key: str, selected_entries: Dict[str, Entry]
+    ) -> None:
+        """Add a bibliography entry and any needed crossref target."""
+        if key in selected_entries:
+            return
+
+        entry = self._bib_entries_by_key.get(key)
+        if entry is None:
+            self._missing_citation_keys.add(key)
+            logger.warning("Citation key not found in bibliography databases: %s", key)
+            return
+
+        crossref_key = entry.fields.get("crossref")
+        if crossref_key:
+            self._add_bib_entry_with_crossref(crossref_key, selected_entries)
+
+        selected_entries[key] = entry
+
+    def _write_bibliography_file(self, output_dir: str) -> None:
+        """Write the merged bibliography file beside the flattened LaTeX."""
+        if not self.config.enable_bibtex or not self._bibliography_files:
+            return
+
+        if self._bib_output_stem is None:
+            raise LatexExpandError("BibTeX output filename was not initialized")
+
+        self._bib_entries_by_key.clear()
+        self._bib_entry_order.clear()
+        self._missing_citation_keys.clear()
+
+        for bib_name in self._bibliography_files:
+            bib_path = self._resolve_bib_path(bib_name, self.config.root_directory)
+            database = parse_file(str(bib_path))
+            self._collect_bib_entries(database, str(bib_path))
+
+        selected_entries: Dict[str, Entry] = {}
+        for citation_key in self._citation_keys:
+            self._add_bib_entry_with_crossref(citation_key, selected_entries)
+
+        selected_entries = dict(sorted(selected_entries.items()))
+
+        output_path = Path(output_dir) / f"{self._bib_output_stem}.bib"
+        output = BibliographyData(entries=selected_entries).to_string("bibtex")
+        normalized_output = self._normalize_bibliography_output(output)
+        output_path.write_text(normalized_output, encoding=self.config.output_encoding)
+        logger.info("Unified bibliography written to: %s", output_path)
+
+    def _normalize_bibliography_output(self, output: str) -> str:
+        """Fix known pybtex escaping issues in serialized BibTeX output."""
+        # pybtex currently escapes existing escapes, so collapse doubled
+        # backslashes after serialization.
+        # See
+        # https://codeberg.org/pybtex/pybtex/issues/28#issuecomment-12578364
+        output = output.replace("\\\\", "\\")
+
+        # URL-like fields should not keep pybtex's additional escaping.
+        lines = output.splitlines()
+        for index, line in enumerate(lines):
+            if re.match(r"^\s*(adsurl|url|doi) =", line):
+                lines[index] = line.replace("\\", "")
+
+        normalized_output = "\n".join(lines)
+        if output.endswith("\n"):
+            normalized_output += "\n"
+        return normalized_output
 
     def _resolve_file_path(self, file_path: str) -> Path:
         """Resolve file path and check existence.
@@ -211,14 +387,18 @@ class LatexExpander:
         match = self._includegraphics_pattern.search(line)
         if not match:
             return line
-        graphic_name: str = match.group(1)
-        graphics_path = self._find_graphics_file(graphic_name, root_dir)
-        if graphics_path:
-            filename: str = os.path.basename(graphics_path)
-            self._copy_graphics_file(graphics_path, output_dir)
-            line = line.replace(graphic_name, filename)
-            return line
-        logger.warning("Graphics file not found: \\includegraphics{%s}", graphic_name)
+        for graphic_name in match.groups():
+            if not graphic_name:
+                # This happens when plottwo is not used and there is only
+                # one match.
+                continue
+            graphics_path = self._find_graphics_file(graphic_name, root_dir)
+            if graphics_path:
+                filename: str = os.path.basename(graphics_path)
+                self._copy_graphics_file(graphics_path, output_dir)
+                line = line.replace(graphic_name, filename)
+            else:
+                logger.warning("Graphics file not found: %s", graphic_name)
         return line
 
     def _process_input_include(
@@ -326,11 +506,14 @@ class LatexExpander:
                 flattened_content.append(line)
                 continue
 
+            has_bibliography = self._update_bibliography_state(line)
             # Process graphics paths
             self._update_graphics_path(line)
 
             # Process includegraphics and update line
             line = self._process_includegraphics(line, root_dir, output_dir)
+            if has_bibliography:
+                line = self._rewrite_bibliography_command(line)
 
             # Process input/include
             processed_line, _ = self._process_input_include(line, root_dir, output_dir)
@@ -355,16 +538,27 @@ class LatexExpander:
             input_path = self._resolve_file_path(input_file)
             root_dir = self.config.root_directory
             output_dir: str = os.path.split(output_file)[0]
+            bib_output_name = (
+                self.config.bib_output_name or f"{input_path.stem}_flattened"
+            )
 
             # Reset state for new operation
             self._visited_files.clear()
             self._graphics_paths.clear()
             self._collected_graphics.clear()
+            self._bibliography_files.clear()
+            self._citation_keys.clear()
+            self._seen_citation_keys.clear()
+            self._missing_citation_keys.clear()
+            self._bib_entries_by_key.clear()
+            self._bib_entry_order.clear()
+            self._bib_output_stem = Path(bib_output_name).stem
 
             logger.info("Starting LaTeX flattening: %s to %s", input_file, output_file)
             flattened_content = self._flatten_file(
                 str(input_path), root_dir, output_dir
             )
+            self._write_bibliography_file(output_dir)
 
             if output_file:
                 with open(output_file, "w", encoding=self.config.output_encoding) as f:
@@ -382,6 +576,9 @@ class LatexExpander:
         logger.info("ignore_commented_lines :: %s", self.config.ignore_commented_lines)
         logger.info("root_directory         :: %s", self.config.root_directory)
         logger.info("output_encoding        :: %s", self.config.output_encoding)
+        logger.info("enable_bibtex          :: %s", self.config.enable_bibtex)
+        logger.info("texmfhome              :: %s", self.config.texmfhome)
+        logger.info("bib_output_name        :: %s", self.config.bib_output_name)
 
 
 def main() -> None:

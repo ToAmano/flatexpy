@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
+from pybtex.database import parse_file
 
 from flatexpy.flatexpy_core import (
     GraphicsNotFoundError,
@@ -42,6 +43,8 @@ class TestLatexExpanderCore:
         assert len(self.expander._visited_files) == 0
         assert len(self.expander._graphics_paths) == 0
         assert len(self.expander._collected_graphics) == 0
+        assert len(self.expander._bibliography_files) == 0
+        assert len(self.expander._citation_keys) == 0
 
     def test_compiled_patterns(self) -> None:
         """Test that regex patterns are compiled correctly."""
@@ -57,7 +60,14 @@ class TestLatexExpanderCore:
         # Test includegraphics pattern
         assert (
             self.expander._includegraphics_pattern.pattern
-            == r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}"
+            == r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\s*\{([^}]+)\})?"
+        )
+        assert (
+            self.expander._bibliography_pattern.pattern == r"\\bibliography\{([^}]+)\}"
+        )
+        assert (
+            self.expander._citation_pattern.pattern
+            == r"\\(?:cite[a-zA-Z*]*|nocite)\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}"
         )
 
     def test_is_line_commented(self) -> None:
@@ -130,6 +140,151 @@ class TestLatexExpanderCore:
         line3 = "\\graphicspath{{figures/}}"
         self.expander._update_graphics_path(line3)
         assert self.expander._graphics_paths == ["figures", "images"]
+
+    def test_extract_bibliography_files(self) -> None:
+        """Test extracting bibliography database names."""
+        line = "\\bibliography{local,lsst, refs_ads}"
+        assert self.expander._extract_bibliography_files(line) == [
+            "local",
+            "lsst",
+            "refs_ads",
+        ]
+
+    def test_extract_citation_keys(self) -> None:
+        """Test extracting citation keys from cite-like commands."""
+        line = "Text \\citep[see][]{key1,key2} and \\nocite{key3}"
+        assert self.expander._extract_citation_keys(line) == ["key1", "key2", "key3"]
+
+    def test_rewrite_bibliography_command(self) -> None:
+        """Test rewriting bibliography command to merged output."""
+        self.expander._bib_output_stem = "main_flattened"
+        line = "\\bibliography{local,lsst}\n"
+        assert (
+            self.expander._rewrite_bibliography_command(line)
+            == "\\bibliography{main_flattened}\n"
+        )
+
+    def test_resolve_bib_path_prefers_local_file(self) -> None:
+        """Test local bibliography databases are preferred over TEXMFHOME."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root_dir = Path(temp_dir)
+            texmf_dir = root_dir / "texmf"
+            local_bib = root_dir / "refs.bib"
+            texmf_bib = texmf_dir / "bibtex" / "bib" / "misc" / "refs.bib"
+            texmf_bib.parent.mkdir(parents=True)
+            local_bib.write_text(
+                "@article{localref, title={Local}}\n", encoding="utf-8"
+            )
+            texmf_bib.write_text(
+                "@article{texmfref, title={Texmf}}\n", encoding="utf-8"
+            )
+
+            expander = LatexExpander(
+                LatexExpandConfig(root_directory=temp_dir, texmfhome=str(texmf_dir))
+            )
+            assert expander._resolve_bib_path("refs", temp_dir) == local_bib
+
+    def test_collect_bib_entries_keeps_first_duplicate(self) -> None:
+        """Test duplicate keys keep the first database entry."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            first_bib = Path(temp_dir) / "first_refs.bib"
+            second_bib = Path(temp_dir) / "second_refs.bib"
+            first_bib.write_text(
+                "@article{dupkey, title={First Title}}\n", encoding="utf-8"
+            )
+            second_bib.write_text(
+                "@article{dupkey, title={Second Title}}\n", encoding="utf-8"
+            )
+
+            first_db = parse_file(str(first_bib))
+            second_db = parse_file(str(second_bib))
+
+            self.expander._collect_bib_entries(first_db, str(first_bib))
+            self.expander._collect_bib_entries(second_db, str(second_bib))
+
+            assert (
+                self.expander._bib_entries_by_key["dupkey"].fields["title"]
+                == "First Title"
+            )
+
+    def test_update_bibliography_state_disabled(self) -> None:
+        """Test tracking bibliography state when bibtex is disabled."""
+        self.expander.config.enable_bibtex = False
+        line = "\\bibliography{refs}"
+        assert not self.expander._update_bibliography_state(line)
+        assert len(self.expander._bibliography_files) == 0
+
+    def test_rewrite_bibliography_command_edge_cases(self) -> None:
+        """Test early returns in rewriting bibliography command."""
+        # 1. Bibtex disabled
+        self.expander.config.enable_bibtex = False
+        line = "\\bibliography{local,lsst}\n"
+        assert self.expander._rewrite_bibliography_command(line) == line
+
+        # 2. Output stem is None
+        self.expander.config.enable_bibtex = True
+        self.expander._bib_output_stem = None
+        assert self.expander._rewrite_bibliography_command(line) == line
+
+        # 3. No bibliography command
+        self.expander._bib_output_stem = "main_flat"
+        no_bib_line = "Ordinary text line\n"
+        assert self.expander._rewrite_bibliography_command(no_bib_line) == no_bib_line
+
+    def test_resolve_bib_path_not_found(self) -> None:
+        """Test resolving non-existent bib database raises error."""
+        with pytest.raises(LatexExpandError, match="Bibliography database not found"):
+            self.expander._resolve_bib_path("non_existent_database_xyz", ".")
+
+    def test_add_bib_entry_duplicate_ignored(self) -> None:
+        """Test adding duplicate bibliography entry returns early."""
+        from pybtex.database import Entry
+        entry = Entry("article", fields={"title": "Some Title"})
+        selected: Dict[str, Entry] = {}
+        self.expander._bib_entries_by_key = {"key": entry}
+
+        # First call adds the entry
+        self.expander._add_bib_entry_with_crossref("key", selected)
+        assert "key" in selected
+
+        # Second call should return early (already in selected)
+        self.expander._add_bib_entry_with_crossref("key", selected)
+        assert len(selected) == 1
+
+    def test_add_bib_entry_missing_cited_key(self) -> None:
+        """Test citing a missing key tracks it and logs warning."""
+        selected: Dict[str, Entry] = {}
+        self.expander._bib_entries_by_key = {}
+        self.expander._add_bib_entry_with_crossref("missing_key", selected)
+        assert "missing_key" in self.expander._missing_citation_keys
+        assert "missing_key" not in selected
+
+    def test_add_bib_entry_with_crossref(self) -> None:
+        """Test crossref resolution when adding an entry."""
+        from pybtex.database import Entry
+        child_entry = Entry("inproceedings", fields={"title": "Child", "crossref": "parent_key"})
+        parent_entry = Entry("proceedings", fields={"title": "Parent"})
+
+        self.expander._bib_entries_by_key = {
+            "child_key": child_entry,
+            "parent_key": parent_entry,
+        }
+        selected: Dict[str, Entry] = {}
+        self.expander._add_bib_entry_with_crossref("child_key", selected)
+
+        # Verify both child and parent are added
+        assert "child_key" in selected
+        assert "parent_key" in selected
+        # Verify crossref parent is added before the child (so crossref target appears first)
+        keys = list(selected.keys())
+        assert keys.index("parent_key") < keys.index("child_key")
+
+    def test_write_bibliography_file_not_initialized(self) -> None:
+        """Test writing bibliography file without initialized output filename raises error."""
+        self.expander._bibliography_files = ["refs"]
+        self.expander._bib_output_stem = None
+        with pytest.raises(LatexExpandError, match="BibTeX output filename was not initialized"):
+            self.expander._write_bibliography_file(".")
 
     def test_show_config(self) -> None:
         """Test configuration display."""
@@ -383,3 +538,72 @@ class TestLatexExpanderCore:
             with open(output_file, "r") as f:
                 content = f.read()
                 assert content == result
+
+    def test_flatten_latex_writes_merged_bibliography(self) -> None:
+        """Test bibliography collection and unified .bib generation."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            input_file = os.path.join(temp_dir, "main.tex")
+            included_file = os.path.join(temp_dir, "section.tex")
+            bibliography_file = os.path.join(temp_dir, "refs.bib")
+            output_dir = os.path.join(temp_dir, "output")
+            output_file = os.path.join(output_dir, "main_flat.tex")
+            os.makedirs(output_dir)
+
+            with open(input_file, "w", encoding="utf-8") as f:
+                f.write(
+                    "\\documentclass{article}\n"
+                    "\\begin{document}\n"
+                    "\\citep{beta}\n"
+                    "\\input{section}\n"
+                    "\\bibliography{refs}\n"
+                    "\\end{document}\n"
+                )
+
+            with open(included_file, "w", encoding="utf-8") as f:
+                f.write("Nested cite \\cite{alpha}.\n")
+
+            with open(bibliography_file, "w", encoding="utf-8") as f:
+                f.write(
+                    "@article{alpha,\n"
+                    "  title = {Alpha Title}\n"
+                    "}\n\n"
+                    "@article{beta,\n"
+                    "  title = {Beta Title}\n"
+                    "}\n\n"
+                    "@article{gamma,\n"
+                    "  title = {Gamma Title}\n"
+                    "}\n"
+                )
+
+            expander = LatexExpander(LatexExpandConfig(root_directory=temp_dir))
+            result = expander.flatten_latex(input_file, output_file)
+
+            merged_bib = os.path.join(output_dir, "main_flattened.bib")
+            assert "\\bibliography{main_flattened}" in result
+            assert os.path.exists(merged_bib)
+
+            with open(merged_bib, "r", encoding="utf-8") as f:
+                merged_content = f.read()
+                assert "alpha" in merged_content
+                assert "beta" in merged_content
+                assert "gamma" not in merged_content
+                assert merged_content.index("@article{alpha") < merged_content.index(
+                    "@article{beta"
+                )
+
+    def test_normalize_bibliography_output_fixes_pybtex_escaping(self) -> None:
+        """Test post-processing for known pybtex escaping issues."""
+        output = (
+            "@article{ref,\n"
+            "  title = {A\\\\_B and C\\\\#D},\n"
+            "  url = {https://example.com/a\\\\_b\\\\#c},\n"
+            "  doi = {10.1234/foo\\\\_bar},\n"
+            "  adsurl = {https://ads.example/x\\\\_y}\n"
+            "}\n"
+        )
+
+        normalized = self.expander._normalize_bibliography_output(output)
+        assert "title = {A\\_B and C\\#D}" in normalized
+        assert "url = {https://example.com/a_b#c}" in normalized
+        assert "doi = {10.1234/foo_bar}" in normalized
+        assert "adsurl = {https://ads.example/x_y}" in normalized
