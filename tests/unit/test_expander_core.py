@@ -207,6 +207,85 @@ class TestLatexExpanderCore:
                 == "First Title"
             )
 
+    def test_update_bibliography_state_disabled(self) -> None:
+        """Test tracking bibliography state when bibtex is disabled."""
+        self.expander.config.enable_bibtex = False
+        line = "\\bibliography{refs}"
+        assert not self.expander._update_bibliography_state(line)
+        assert len(self.expander._bibliography_files) == 0
+
+    def test_rewrite_bibliography_command_edge_cases(self) -> None:
+        """Test early returns in rewriting bibliography command."""
+        # 1. Bibtex disabled
+        self.expander.config.enable_bibtex = False
+        line = "\\bibliography{local,lsst}\n"
+        assert self.expander._rewrite_bibliography_command(line) == line
+
+        # 2. Output stem is None
+        self.expander.config.enable_bibtex = True
+        self.expander._bib_output_stem = None
+        assert self.expander._rewrite_bibliography_command(line) == line
+
+        # 3. No bibliography command
+        self.expander._bib_output_stem = "main_flat"
+        no_bib_line = "Ordinary text line\n"
+        assert self.expander._rewrite_bibliography_command(no_bib_line) == no_bib_line
+
+    def test_resolve_bib_path_not_found(self) -> None:
+        """Test resolving non-existent bib database raises error."""
+        with pytest.raises(LatexExpandError, match="Bibliography database not found"):
+            self.expander._resolve_bib_path("non_existent_database_xyz", ".")
+
+    def test_add_bib_entry_duplicate_ignored(self) -> None:
+        """Test adding duplicate bibliography entry returns early."""
+        from pybtex.database import Entry
+        entry = Entry("article", fields={"title": "Some Title"})
+        selected: Dict[str, Entry] = {}
+        self.expander._bib_entries_by_key = {"key": entry}
+
+        # First call adds the entry
+        self.expander._add_bib_entry_with_crossref("key", selected)
+        assert "key" in selected
+
+        # Second call should return early (already in selected)
+        self.expander._add_bib_entry_with_crossref("key", selected)
+        assert len(selected) == 1
+
+    def test_add_bib_entry_missing_cited_key(self) -> None:
+        """Test citing a missing key tracks it and logs warning."""
+        selected: Dict[str, Entry] = {}
+        self.expander._bib_entries_by_key = {}
+        self.expander._add_bib_entry_with_crossref("missing_key", selected)
+        assert "missing_key" in self.expander._missing_citation_keys
+        assert "missing_key" not in selected
+
+    def test_add_bib_entry_with_crossref(self) -> None:
+        """Test crossref resolution when adding an entry."""
+        from pybtex.database import Entry
+        child_entry = Entry("inproceedings", fields={"title": "Child", "crossref": "parent_key"})
+        parent_entry = Entry("proceedings", fields={"title": "Parent"})
+
+        self.expander._bib_entries_by_key = {
+            "child_key": child_entry,
+            "parent_key": parent_entry,
+        }
+        selected: Dict[str, Entry] = {}
+        self.expander._add_bib_entry_with_crossref("child_key", selected)
+
+        # Verify both child and parent are added
+        assert "child_key" in selected
+        assert "parent_key" in selected
+        # Verify crossref parent is added before the child (so crossref target appears first)
+        keys = list(selected.keys())
+        assert keys.index("parent_key") < keys.index("child_key")
+
+    def test_write_bibliography_file_not_initialized(self) -> None:
+        """Test writing bibliography file without initialized output filename raises error."""
+        self.expander._bibliography_files = ["refs"]
+        self.expander._bib_output_stem = None
+        with pytest.raises(LatexExpandError, match="BibTeX output filename was not initialized"):
+            self.expander._write_bibliography_file(".")
+
     def test_show_config(self) -> None:
         """Test configuration display."""
         # This method logs configuration, so we test it doesn't raise errors
