@@ -1,4 +1,9 @@
+<p align="center">
+  <img src="docs/assets/logo.jpg" alt="flatexpy Logo" width="160">
+</p>
+
 # flatexpy
+
 
 [![PyPI version](https://badge.fury.io/py/flatexpy.svg)](https://badge.fury.io/py/flatexpy)
 [![Python versions](https://img.shields.io/pypi/pyversions/flatexpy.svg)](https://pypi.org/project/flatexpy/)
