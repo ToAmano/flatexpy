@@ -1,15 +1,14 @@
-<p align="center">
-  <img src="docs/assets/logo.jpg" alt="flatexpy Logo" width="160">
-</p>
-
 # flatexpy
-
 
 [![PyPI version](https://badge.fury.io/py/flatexpy.svg)](https://badge.fury.io/py/flatexpy)
 [![Python versions](https://img.shields.io/pypi/pyversions/flatexpy.svg)](https://pypi.org/project/flatexpy/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/ToAmano/flatexpy/workflows/Tests/badge.svg)](https://github.com/ToAmano/flatexpy/actions)
 [![Coverage](https://codecov.io/gh/ToAmano/flatexpy/branch/main/graph/badge.svg)](https://codecov.io/gh/ToAmano/flatexpy)
+
+<p align="center">
+  <img src="docs/assets/logo.jpg" alt="flatexpy Logo" width="160">
+</p>
 
 A LaTeX flattening utility for academic paper submission that recursively processes `\input` and `\include` commands, copies referenced graphics, and produces a single consolidated LaTeX file.
 
