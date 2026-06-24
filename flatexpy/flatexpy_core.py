@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
-from pybtex.database import BibliographyData, parse_file
+from pybtex.database import BibliographyData, Entry, parse_file
 
 
 def _setup_logger() -> logging.Logger:
@@ -87,8 +87,12 @@ class LatexExpander:
         # From AAS macros:
         # \plotone{image.pdf}
         # \plottwo{image1.jpg}{image2.pdf}
+        # \plotone and \includegraphics take a single mandatory argument;
+        # only \plottwo takes a second one (LaTeX permits whitespace between
+        # the two arguments).
         self._includegraphics_pattern = re.compile(
-            r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\{([^}]+)\})?"
+            r"\\(?:includegraphics|plotone)(?:\[[^\]]*\])?\{([^}]+)\}"
+            r"|\\plottwo(?:\[[^\]]*\])?\{([^}]+)\}\s*\{([^}]+)\}"
         )
         self._bibliography_pattern = re.compile(r"\\bibliography\{([^}]+)\}")
         self._citation_pattern = re.compile(
@@ -104,7 +108,7 @@ class LatexExpander:
         self._seen_citation_keys: Set[str] = set()
         self._missing_citation_keys: Set[str] = set()
         self._bib_output_stem: Optional[str] = None
-        self._bib_entries_by_key: Dict[str, object] = {}
+        self._bib_entries_by_key: Dict[str, Entry] = {}
         self._bib_entry_order: List[str] = []
 
     def _extract_bibliography_files(self, line: str) -> List[str]:
@@ -197,7 +201,7 @@ class LatexExpander:
             self._bib_entry_order.append(key)
 
     def _add_bib_entry_with_crossref(
-        self, key: str, selected_entries: "Dict[str, object]"
+        self, key: str, selected_entries: "Dict[str, Entry]"
     ) -> None:
         """Add a bibliography entry and any needed crossref target."""
         if key in selected_entries:
@@ -232,7 +236,7 @@ class LatexExpander:
             database = parse_file(str(bib_path))
             self._collect_bib_entries(database, str(bib_path))
 
-        selected_entries: "Dict[str, object]" = dict()
+        selected_entries: Dict[str, Entry] = {}
         for citation_key in self._citation_keys:
             self._add_bib_entry_with_crossref(citation_key, selected_entries)
 
@@ -389,8 +393,9 @@ class LatexExpander:
             return line
         for graphic_name in match.groups():
             if not graphic_name:
-                # This happens when plottwo is not used and there is only
-                # one match.
+                # Capture groups for the regex branch that did not match are
+                # None: the single-argument group for \plottwo, or the two
+                # \plottwo groups for \includegraphics and \plotone.
                 continue
             graphics_path = self._find_graphics_file(graphic_name, root_dir)
             if graphics_path:
@@ -398,9 +403,7 @@ class LatexExpander:
                 self._copy_graphics_file(graphics_path, output_dir)
                 line = line.replace(graphic_name, filename)
             else:
-                logger.warning(
-                    "Graphics file not found: \\includegraphics{%s}", graphic_name
-                )
+                logger.warning("Graphics file not found: %s", graphic_name)
         return line
 
     def _process_input_include(

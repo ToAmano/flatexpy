@@ -188,6 +188,37 @@ class TestGraphicsUnit:
             assert "\\includegraphics[width=0.5\\textwidth]{figure.pdf}" in result
             mock_copy.assert_called_once()
 
+    def test_process_plottwo_with_whitespace(self) -> None:
+        """Test processing \\plottwo with whitespace between arguments."""
+        with (
+            patch.object(self.expander, "_find_graphics_file") as mock_find,
+            patch.object(self.expander, "_copy_graphics_file") as mock_copy,
+        ):
+            mock_find.side_effect = ["path/to/fig1.pdf", "path/to/fig2.pdf"]
+
+            line = "\\plottwo{fig1} {fig2}"
+            result = self.expander._process_includegraphics(line, ".", "output")
+
+            assert "fig1.pdf" in result
+            assert "fig2.pdf" in result
+            assert mock_copy.call_count == 2
+
+    def test_process_plotone_ignores_following_group(self) -> None:
+        """Test \\plotone only consumes its single argument."""
+        with (
+            patch.object(self.expander, "_find_graphics_file") as mock_find,
+            patch.object(self.expander, "_copy_graphics_file") as mock_copy,
+        ):
+            mock_find.return_value = "path/to/fig.pdf"
+
+            line = "\\plotone{fig} {foo}"
+            result = self.expander._process_includegraphics(line, ".", "output")
+
+            assert "fig.pdf" in result
+            assert "{foo}" in result  # Trailing group left untouched
+            mock_find.assert_called_once_with("fig", ".")
+            mock_copy.assert_called_once()
+
     def test_process_includegraphics_multiple_in_line(self) -> None:
         """Test processing line with multiple includegraphics commands."""
         with (

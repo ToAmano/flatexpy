@@ -58,9 +58,9 @@ class TestLatexExpanderCore:
         )
 
         # Test includegraphics pattern
-        assert (
-            self.expander._includegraphics_pattern.pattern
-            == r"\\(?:includegraphics|plotone|plottwo)(?:\[[^\]]*\])?\{([^}]+)\}(?:\{([^}]+)\})?"
+        assert self.expander._includegraphics_pattern.pattern == (
+            r"\\(?:includegraphics|plotone)(?:\[[^\]]*\])?\{([^}]+)\}"
+            r"|\\plottwo(?:\[[^\]]*\])?\{([^}]+)\}\s*\{([^}]+)\}"
         )
         assert self.expander._bibliography_pattern.pattern == r"\\bibliography\{([^}]+)\}"
         assert (
